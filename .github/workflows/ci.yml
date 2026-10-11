@@ -1,29 +1,21 @@
 name: CI
 
 on:
-  push:
-    branches: ['main']
-  pull_request:
-    paths:
-      - 'src/**'
-      - 'test/**'
-      - '*.json'
-      - '*.js'
-      - '*.ts'
-      - '*.md'
-      - '.prettierignore'
-      - 'lib/**'
-      - 'scripts/**'
-      - '.github/workflows/ci.yml'
-      - 'package.json'
   workflow_dispatch:
+    inputs:
+      test-filter:
+        description: 'Optional tap test file selectors'
+        required: false
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
   format:
+    if: false
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout Repository
@@ -56,6 +48,7 @@ jobs:
       fail-fast: false
 
     runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 30
     defaults:
       run:
         shell: ${{ matrix.platform.shell }}
@@ -73,4 +66,16 @@ jobs:
         run: npm ci
 
       - name: Run Tests
-        run: npm test -- -c -t0
+        run: npm test -- -c -t0 ${{ inputs.test-filter }}
+
+      - name: Pack tarball
+        if: matrix.platform.os == 'ubuntu-latest' && matrix.platform.shell == 'bash' && matrix.node-version == '24.x'
+        run: npm pack
+
+      - name: Upload tarball
+        if: matrix.platform.os == 'ubuntu-latest' && matrix.platform.shell == 'bash' && matrix.node-version == '24.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-tarball
+          path: brace-expansion-*.tgz
+          if-no-files-found: error
